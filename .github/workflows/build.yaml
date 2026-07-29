@@ -108,11 +108,13 @@ jobs:
               try:
                   decoded = base64.b64decode(''.join(raw.split())).decode('utf-8')
               except UnicodeDecodeError as exc:
-                  raise SystemExit('SERVICE_JSON base64 content is not valid UTF-8') from exc
+                  raise SystemExit(
+                      'SERVICE_JSON base64 content is not valid UTF-8 after whitespace normalization'
+                  ) from exc
               except (ValueError, binascii.Error) as exc:
                   raise SystemExit('SERVICE_JSON is not valid base64') from exc
               if not is_json(decoded):
-                  raise SystemExit('SERVICE_JSON is neither valid JSON nor base64-encoded JSON')
+                  raise SystemExit('SERVICE_JSON base64-decoded content is not valid JSON')
               output.write_text(decoded, encoding='utf-8')
           PY
           {
