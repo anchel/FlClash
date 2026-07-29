@@ -84,6 +84,7 @@ jobs:
           echo "${{ secrets.KEYSTORE }}" | base64 --decode > android/app/keystore.jks
           python - <<'PY'
           import base64
+          import binascii
           import json
           import os
           from pathlib import Path
@@ -106,7 +107,9 @@ jobs:
           else:
               try:
                   decoded = base64.b64decode(''.join(raw.split())).decode('utf-8')
-              except ValueError as exc:
+              except UnicodeDecodeError as exc:
+                  raise SystemExit('SERVICE_JSON base64 content is not valid UTF-8') from exc
+              except (ValueError, binascii.Error) as exc:
                   raise SystemExit('SERVICE_JSON is not valid base64') from exc
               if not is_json(decoded):
                   raise SystemExit('SERVICE_JSON is neither valid JSON nor base64-encoded JSON')
