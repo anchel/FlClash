@@ -44,7 +44,7 @@ class AppPath {
   }
 
   String get corePath {
-    return join(executableDirPath, 'FlClashCore$executableExtension');
+    return join(executableDirPath, 'FlClashXCore$executableExtension');
   }
 
   String get helperPath {
@@ -83,7 +83,7 @@ class AppPath {
 
   Future<String> get lockFilePath async {
     final homeDirPath = await appPath.homeDirPath;
-    return join(homeDirPath, 'FlClash.lock');
+    return join(homeDirPath, 'FlClashX.lock');
   }
 
   Future<String> get configFilePath async {
