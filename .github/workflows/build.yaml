@@ -52,14 +52,31 @@ jobs:
 
       - name: Setup Android Signing
         if: startsWith(matrix.platform,'android')
+        env:
+          KEYSTORE: ${{ secrets.KEYSTORE }}
+          SERVICE_JSON: ${{ secrets.SERVICE_JSON }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
-          echo "${{ secrets.KEYSTORE }}" | base64 --decode > android/app/keystore.jks
-          echo "${{ secrets.SERVICE_JSON }}" | base64 --decode > android/app/google-services.json
-          {
-            echo "keyAlias=${{ secrets.KEY_ALIAS }}"
-            echo "storePassword=${{ secrets.STORE_PASSWORD }}"
-            echo "keyPassword=${{ secrets.KEY_PASSWORD }}"
-          } >> android/local.properties
+          if [ -n "$SERVICE_JSON" ]; then
+            echo "$SERVICE_JSON" | base64 --decode > android/app/google-services.json
+            echo "google-services.json: using SERVICE_JSON secret"
+          else
+            echo "google-services.json: SERVICE_JSON not set, keeping the checked-in placeholder"
+          fi
+
+          if [ -n "$KEYSTORE" ] && [ -n "$KEY_ALIAS" ] && [ -n "$STORE_PASSWORD" ] && [ -n "$KEY_PASSWORD" ]; then
+            echo "$KEYSTORE" | base64 --decode > android/app/keystore.jks
+            {
+              echo "keyAlias=$KEY_ALIAS"
+              echo "storePassword=$STORE_PASSWORD"
+              echo "keyPassword=$KEY_PASSWORD"
+            } >> android/local.properties
+            echo "signing: release keystore configured"
+          else
+            echo "signing: keystore secrets incomplete, falling back to debug signing (applicationId gets a .dev suffix)"
+          fi
 
       - name: Setup Go
         uses: actions/setup-go@v5
