@@ -91,6 +91,9 @@ jobs:
           raw = (os.environ.get('SERVICE_JSON') or '').strip()
           output = Path('android/app/google-services.json')
 
+          if not raw:
+              raise SystemExit('SERVICE_JSON secret is empty or missing')
+
           def is_json(content: str) -> bool:
               try:
                   json.loads(content)
@@ -101,7 +104,10 @@ jobs:
           if is_json(raw):
               output.write_text(raw, encoding='utf-8')
           else:
-              decoded = base64.b64decode(''.join(raw.split())).decode('utf-8')
+              try:
+                  decoded = base64.b64decode(''.join(raw.split())).decode('utf-8')
+              except ValueError as exc:
+                  raise SystemExit('SERVICE_JSON is not valid base64') from exc
               if not is_json(decoded):
                   raise SystemExit('SERVICE_JSON is neither valid JSON nor base64-encoded JSON')
               output.write_text(decoded, encoding='utf-8')
