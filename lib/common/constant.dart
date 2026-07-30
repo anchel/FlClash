@@ -14,6 +14,8 @@ const appHelperService = 'FlClashXHelperService';
 const coreName = 'clash.meta';
 const browserUa =
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+/// Namespace of the platform channels, it must stay in sync with the Kotlin
+/// source package (`Components.PACKAGE_NAME`), it is not the application id.
 const packageName = 'com.follow.clash';
 final unixSocketPath = '/tmp/FlClashXSocket_${Random().nextInt(10000)}.sock';
 final windowsPipeName = '\\\\.\\pipe\\FlClashXCore_${Random().nextInt(10000)}';
@@ -56,7 +58,7 @@ const localhost = '127.0.0.1';
 const clashConfigKey = 'clash_config';
 const configKey = 'config';
 const double dialogCommonWidth = 300;
-const repository = 'anchel/FlClash';
+const repository = 'chen08209/FlClash';
 const defaultExternalController = '127.0.0.1:9090';
 const maxMobileWidth = 600;
 const maxLaptopWidth = 840;

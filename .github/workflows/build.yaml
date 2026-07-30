@@ -9,7 +9,33 @@ env:
   FLUTTER_VERSION: '3.44.4'
 
 jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos
+
+      - name: Run tests
+        run: flutter test --reporter expanded
+
   build:
+    needs: [ test ]
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -59,23 +85,26 @@ jobs:
           STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
-          if [ -n "$SERVICE_JSON" ]; then
-            echo "$SERVICE_JSON" | base64 --decode > android/app/google-services.json
-            echo "google-services.json: using SERVICE_JSON secret"
-          else
-            echo "google-services.json: SERVICE_JSON not set, keeping the checked-in placeholder"
-          fi
-
-          if [ -n "$KEYSTORE" ] && [ -n "$KEY_ALIAS" ] && [ -n "$STORE_PASSWORD" ] && [ -n "$KEY_PASSWORD" ]; then
+          # Only write the signing config when every required secret is present,
+          # mirroring the isRelease check in android/app/build.gradle.kts.
+          # Writing empty files instead would break the build outright.
+          if [ -n "$KEYSTORE" ] && [ -n "$KEY_ALIAS" ] && [ -n "$STORE_PASSWORD" ] \
+            && [ -n "$KEY_PASSWORD" ]; then
             echo "$KEYSTORE" | base64 --decode > android/app/keystore.jks
             {
               echo "keyAlias=$KEY_ALIAS"
               echo "storePassword=$STORE_PASSWORD"
               echo "keyPassword=$KEY_PASSWORD"
             } >> android/local.properties
-            echo "signing: release keystore configured"
+            echo '::notice::Release signing enabled'
           else
-            echo "signing: keystore secrets incomplete, falling back to debug signing (applicationId gets a .dev suffix)"
+            echo '::warning::Signing secrets missing, building unsigned with the .dev application id'
+          fi
+
+          if [ -n "$SERVICE_JSON" ]; then
+            echo "$SERVICE_JSON" | base64 --decode > android/app/google-services.json
+          else
+            echo '::warning::SERVICE_JSON missing, keeping the placeholder google-services.json'
           fi
 
       - name: Setup Go
@@ -125,12 +154,17 @@ jobs:
           path: ./dist
           overwrite: true
 
-  release:
+  upload:
     permissions:
       contents: write
     needs: [ build ]
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - name: Download
         uses: actions/download-artifact@v4
         with:
@@ -138,14 +172,44 @@ jobs:
           pattern: artifact-*
           merge-multiple: true
 
+      - name: Generate release.md
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tags=($(git tag --merged HEAD --sort=-creatordate))
+          preTag=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
+          "https://api.github.com/repos/${{ github.repository }}/releases/latest" | \
+          sed -nE 's/.*"tag_name": "([^"]+)".*/\1/p')
+          
+          [ -z "$preTag" ] && preTag=""
+          
+          out="release.md" > "$out"
+          
+          for i in "${!tags[@]}"; do
+            curr="${tags[i]}"
+            [[ "$curr" == "$preTag" ]] && break
+          
+            prev="${tags[i+1]}"
+            range="${prev:+$prev..}$curr"
+          
+            git log --no-merges --pretty=format:"%B" "$range" | \
+            awk '!/Update changelog/ && NF {print "- " $0 "\n"}' >> "$out"
+          done
+
+      - name: Patch release.md
+        run: |
+          version=$(echo "${{ github.ref_name }}" | sed 's/^v//')
+          sed "s|VERSION|$version|g" ./.github/release_template.md >> release.md
+
       - name: Generate sha256
+        if: ${{ env.IS_STABLE == 'true' }}
         run: |
           cd ./dist
           sha256sum ./* > SHA256SUMS
 
       - name: Release
+        if: ${{ env.IS_STABLE == 'true' }}
         uses: softprops/action-gh-release@v2
         with:
           files: ./dist/*
-          prerelease: ${{ env.IS_STABLE != 'true' }}
-          generate_release_notes: true
+          body_path: './release.md'

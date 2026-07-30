@@ -50,7 +50,7 @@ class AboutView extends StatelessWidget {
         ListItem(
           title: const Text('Telegram'),
           onTap: () {
-            globalState.openUrl('https://t.me/FlClashX');
+            globalState.openUrl('https://t.me/FlClash');
           },
           trailing: const Icon(Icons.launch),
         ),
@@ -65,7 +65,7 @@ class AboutView extends StatelessWidget {
           title: Text(appLocalizations.core),
           onTap: () {
             globalState.openUrl(
-              'https://github.com/anchel/Clash.Meta/tree/support-another',
+              'https://github.com/chen08209/Clash.Meta/tree/FlClash',
             );
           },
           trailing: const Icon(Icons.launch),
